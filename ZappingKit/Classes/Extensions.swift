@@ -39,7 +39,7 @@ fileprivate extension NSObject {
 }
 
 internal extension UIView {
-  public func addConstraints(_ fillConstraintsPair: FillConstraintsPair) {
+  internal func addConstraints(_ fillConstraintsPair: FillConstraintsPair) {
     addConstraints(fillConstraintsPair.v)
     addConstraints(fillConstraintsPair.h)
   }

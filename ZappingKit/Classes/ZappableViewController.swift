@@ -88,7 +88,6 @@ open class ZappableViewController: UIViewController {
       }
     case .idle: break
     }
-    
   }
   
   //viewWillAppearとかの制御権を握る
@@ -98,15 +97,13 @@ open class ZappableViewController: UIViewController {
 extension ZappableViewController {
   open override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
     guard let touch = touches.first else { return }
-    let location = touch.location(in: contentView)
-    initialY = location.y
+    initialY = touch.location(in: contentView).y
     contentView.viewController?.beginAppearanceTransition(false, animated: true)
   }
   
   open override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
     guard let touch = touches.first else { return }
-    let location = touch.location(in: view)
-    contentView.transform = CGAffineTransform(translationX: 0, y: location.y - initialY)
+    contentView.transform = CGAffineTransform(translationX: 0, y: touch.location(in: view).y - initialY)
     
     switch contentView.frame.origin.y {
     case (let y) where y > 0: peekContentDirectionType = .next
@@ -116,14 +113,16 @@ extension ZappableViewController {
   }
   
   open override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-    guard let touch = touches.first else { return }
-    let location = touch.location(in: view)
+    super.touchesCancelled(touches, with: event)
+    completion()
   }
   
   open override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-    guard let touch = touches.first else { return }
-    let location = touch.location(in: view)
-    
+    super.touchesEnded(touches, with: event)
+    completion()
+  }
+  
+  private func completion() {
     var toY: CGFloat = 0.0
     var toDirectionType: DirectionType = .idle
     switch contentView.frame.origin.y {
@@ -161,6 +160,4 @@ extension ZappableViewController {
       self.view.isUserInteractionEnabled = true
     }
   }
-  
-  
 }
