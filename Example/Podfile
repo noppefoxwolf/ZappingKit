@@ -1,11 +1,10 @@
 use_frameworks!
+swift_version = '3.0'
 
 target 'ZappingKit_Example' do
   pod 'ZappingKit', :path => '../'
 
   target 'ZappingKit_Tests' do
     inherit! :search_paths
-
-    
   end
 end

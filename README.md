@@ -22,7 +22,7 @@ pod "ZappingKit"
 
 ## Author
 
-Tomoya Hirano, tomoya.hirano@dena.com
+Tomoya Hirano, cromteria@gmail.com
 
 ## License
 

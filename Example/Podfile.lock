@@ -1,0 +1,16 @@
+PODS:
+  - ZappingKit (0.1.0)
+
+DEPENDENCIES:
+  - ZappingKit (from `../`)
+
+EXTERNAL SOURCES:
+  ZappingKit:
+    :path: "../"
+
+SPEC CHECKSUMS:
+  ZappingKit: 02c61b020b2919d1baa30c839b4bceb2a77b83d9
+
+PODFILE CHECKSUM: d239886a77dc0d48f3fc5057c475e9a318d549a4
+
+COCOAPODS: 1.1.0.rc.2
