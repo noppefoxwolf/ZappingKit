@@ -1,0 +1,11 @@
+use_frameworks!
+
+target 'ZappingKit_Example' do
+  pod 'ZappingKit', :path => '../'
+
+  target 'ZappingKit_Tests' do
+    inherit! :search_paths
+
+    
+  end
+end
