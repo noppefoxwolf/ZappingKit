@@ -56,7 +56,11 @@ open class ZappableViewController: UIViewController {
   
   public func first(_ viewController: UIViewController) {
     viewControllers = [viewController]
+    addChildViewController(viewController)
     contentView.configure(viewController)
+    viewController.didMove(toParentViewController: self)
+    viewController.beginAppearanceTransition(true, animated: true)
+    viewController.endAppearanceTransition()
   }
   
   func peekContentDirectionTypeChanged(_ type: DirectionType) {
