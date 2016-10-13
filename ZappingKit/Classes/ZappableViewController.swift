@@ -54,13 +54,24 @@ open class ZappableViewController: UIViewController {
     view.addConstraints(FillConstraintsPair(of: contentView, name: "contentView"))
   }
   
+  open override func viewWillAppear(_ animated: Bool) {
+    super.viewWillAppear(animated)
+    contentView.viewController?.beginAppearanceTransition(true, animated: true)
+    contentView.viewController?.endAppearanceTransition()
+  }
+  
+  open override func viewDidDisappear(_ animated: Bool) {
+    super.viewDidDisappear(animated)
+    contentView.viewController?.beginAppearanceTransition(false, animated: true)
+    contentView.viewController?.endAppearanceTransition()
+  }
+  
+  //Must call in viewDidLoad
   public func first(_ viewController: UIViewController) {
     viewControllers = [viewController]
     addChildViewController(viewController)
     contentView.configure(viewController)
     viewController.didMove(toParentViewController: self)
-    viewController.beginAppearanceTransition(true, animated: true)
-    viewController.endAppearanceTransition()
   }
   
   func peekContentDirectionTypeChanged(_ type: DirectionType) {
