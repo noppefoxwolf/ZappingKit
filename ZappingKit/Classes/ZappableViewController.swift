@@ -26,14 +26,15 @@ open class ZappableViewController: UIViewController {
   
   public var delegate: ZappableViewControllerDelegate? = nil
   public var dataSource: ZappableViewControllerDataSource? = nil
+  public var scrollOffset: CGFloat = 44.0
   var viewControllers = [UIViewController]()
   
-  var peekContainerView = ContainerView()
-  var contentView = ContainerView()
+  fileprivate var peekContainerView = ContainerView()
+  fileprivate var contentView = ContainerView()
   
   //temp
-  var initialY: CGFloat = 0.0
-  var peekContentDirectionType: DirectionType = .idle {
+  fileprivate var initialY: CGFloat = 0.0
+  fileprivate var peekContentDirectionType: DirectionType = .idle {
     didSet {
       if oldValue != peekContentDirectionType {
         peekContentDirectionTypeChanged(peekContentDirectionType)
@@ -74,7 +75,7 @@ open class ZappableViewController: UIViewController {
     viewController.didMove(toParentViewController: self)
   }
   
-  func peekContentDirectionTypeChanged(_ type: DirectionType) {
+  fileprivate func peekContentDirectionTypeChanged(_ type: DirectionType) {
     switch type {
     case .next:
       if let vc = dataSource?.zappableViewController(self, viewControllerAfter:  contentView.viewController) {
@@ -107,23 +108,34 @@ open class ZappableViewController: UIViewController {
   
   //viewWillAppearとかの制御権を握る
   open override var shouldAutomaticallyForwardAppearanceMethods: Bool { return false }
+  
+  fileprivate var isScolling = false
 }
 
 extension ZappableViewController {
   open override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
     guard let touch = touches.first else { return }
     initialY = touch.location(in: contentView).y
-    contentView.viewController?.beginAppearanceTransition(false, animated: true)
+    //contentView.viewController?.beginAppearanceTransition(false, animated: true)
   }
   
   open override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
     guard let touch = touches.first else { return }
-    contentView.transform = CGAffineTransform(translationX: 0, y: touch.location(in: view).y - initialY)
-    
-    switch contentView.frame.origin.y {
-    case (let y) where y > 0: peekContentDirectionType = .next
-    case (let y) where y < 0: peekContentDirectionType = .prev
-    default: peekContentDirectionType = .idle
+    let transitionY = touch.location(in: view).y - initialY
+    //初めて20以上の移動をした時
+    if abs(transitionY) > scrollOffset && !isScolling {
+      isScolling = true
+      contentView.viewController?.beginAppearanceTransition(false, animated: true)
+      UIView.animate(withDuration: 0.3, animations: { [weak self] in
+        self?.contentView.transform = CGAffineTransform(translationX: 0, y: transitionY)
+      })
+    } else if isScolling {
+      contentView.transform = CGAffineTransform(translationX: 0, y: transitionY)
+      switch contentView.frame.origin.y {
+      case (let y) where y > 0: peekContentDirectionType = .next
+      case (let y) where y < 0: peekContentDirectionType = .prev
+      default: peekContentDirectionType = .idle
+      }
     }
   }
   
@@ -138,6 +150,8 @@ extension ZappableViewController {
   }
   
   private func completion() {
+    guard isScolling else { return }//just tap
+    
     var toY: CGFloat = 0.0
     var toDirectionType: DirectionType = .idle
     switch contentView.frame.origin.y {
@@ -151,28 +165,29 @@ extension ZappableViewController {
     }
     
     view.isUserInteractionEnabled = false
-    UIView.animate(withDuration: 0.15, delay: 0.0, options: [.allowAnimatedContent, .curveEaseInOut] , animations: {
-      self.contentView.transform = CGAffineTransform(translationX: 0, y: toY)
-    }) { (_) in
+    UIView.animate(withDuration: 0.15, delay: 0.0, options: [.allowAnimatedContent, .curveEaseInOut] , animations: { [weak self] in
+      self?.contentView.transform = CGAffineTransform(translationX: 0, y: toY)
+    }) { [weak self] (_) in
       switch toDirectionType {
       case .next, .prev:
-        self.contentView.viewController?.endAppearanceTransition()
-        self.peekContainerView.viewController?.endAppearanceTransition()
-        let vc = self.peekContainerView.viewController
-        self.peekContainerView.configure(nil)
-        self.contentView.configure(nil)
-        self.contentView.configure(vc)
-        self.contentView.transform = CGAffineTransform.identity
-        self.peekContentDirectionType = .idle
+        self?.contentView.viewController?.endAppearanceTransition()
+        self?.peekContainerView.viewController?.endAppearanceTransition()
+        let vc = self?.peekContainerView.viewController
+        self?.peekContainerView.configure(nil)
+        self?.contentView.configure(nil)
+        self?.contentView.configure(vc)
+        self?.contentView.transform = CGAffineTransform.identity
+        self?.peekContentDirectionType = .idle
       case .idle:
-        self.peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
-        self.peekContainerView.viewController?.endAppearanceTransition()
-        self.peekContainerView.configure(nil)
-        self.peekContentDirectionType = .idle
-        self.contentView.viewController?.beginAppearanceTransition(true, animated: true)
-        self.contentView.viewController?.endAppearanceTransition()
+        self?.peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
+        self?.peekContainerView.viewController?.endAppearanceTransition()
+        self?.peekContainerView.configure(nil)
+        self?.peekContentDirectionType = .idle
+        self?.contentView.viewController?.beginAppearanceTransition(true, animated: true)
+        self?.contentView.viewController?.endAppearanceTransition()
       }
-      self.view.isUserInteractionEnabled = true
+      self?.view.isUserInteractionEnabled = true
+      self?.isScolling = false
     }
   }
 }
