@@ -26,12 +26,16 @@ open class ZappableViewController: UIViewController {
   
   public var delegate: ZappableViewControllerDelegate? = nil
   public var dataSource: ZappableViewControllerDataSource? = nil
-  var viewControllers = [UIViewController]()
-  fileprivate var peekContainerView = ContainerView()
-  fileprivate var contentView = ContainerView()
+  private(set) var viewControllers = [UIViewController]()
+  private var peekContainerView = ContainerView()
+  private var contentView = ContainerView()
+  
+  //options
+  public var disableBounceIfNotingNext = true
+  private var lockIdentity = false
   
   //temp
-  fileprivate var peekContentDirectionType: DirectionType = .idle {
+  private var peekContentDirectionType: DirectionType = .idle {
     didSet {
       if oldValue != peekContentDirectionType {
         peekContentDirectionTypeChanged(peekContentDirectionType)
@@ -63,11 +67,16 @@ open class ZappableViewController: UIViewController {
     switch sender.state {
     case .began: fallthrough
     case .changed:
-      contentView.transform = CGAffineTransform(translationX: 0, y: translationY)
-      switch contentView.frame.origin.y {
+      var toY = translationY
+      switch toY {
         case (let y) where y > 0: peekContentDirectionType = .next
         case (let y) where y < 0: peekContentDirectionType = .prev
         default: peekContentDirectionType = .idle
+      }
+      if lockIdentity {
+        contentView.transform = CGAffineTransform.identity
+      } else {
+        contentView.transform = CGAffineTransform(translationX: 0, y: toY)
       }
     case .ended:
       var toY: CGFloat = 0.0
@@ -136,6 +145,7 @@ open class ZappableViewController: UIViewController {
     switch type {
     case .next:
       if let vc = dataSource?.zappableViewController(self, viewControllerAfter:  contentView.viewController) {
+        lockIdentity = false
         peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
         peekContainerView.viewController?.endAppearanceTransition()
         peekContainerView.configure(nil)
@@ -144,10 +154,16 @@ open class ZappableViewController: UIViewController {
         vc.didMove(toParentViewController: self)
         peekContainerView.viewController?.beginAppearanceTransition(true, animated: true)
       } else {
-      
+        peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
+        peekContainerView.viewController?.endAppearanceTransition()
+        peekContainerView.configure(nil)
+        if disableBounceIfNotingNext {
+          lockIdentity = true
+        }
       }
     case .prev:
       if let vc = dataSource?.zappableViewController(self, viewControllerBefore: contentView.viewController) {
+        lockIdentity = false
         peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
         peekContainerView.viewController?.endAppearanceTransition()
         peekContainerView.configure(nil)
@@ -157,7 +173,12 @@ open class ZappableViewController: UIViewController {
         vc.didMove(toParentViewController: self)
         peekContainerView.viewController?.beginAppearanceTransition(true, animated: true)
       } else {
-        
+        peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
+        peekContainerView.viewController?.endAppearanceTransition()
+        peekContainerView.configure(nil)
+        if disableBounceIfNotingNext {
+          lockIdentity = true
+        }
       }
     case .idle: break
     }
