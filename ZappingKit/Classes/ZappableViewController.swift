@@ -26,7 +26,6 @@ open class ZappableViewController: UIViewController {
   
   weak public var delegate: ZappableViewControllerDelegate? = nil
   weak public var dataSource: ZappableViewControllerDataSource? = nil
-  private(set) var viewControllers = [UIViewController]()
   private var peekContainerView = ContainerView()
   private var contentView = ContainerView()
   
@@ -135,7 +134,6 @@ open class ZappableViewController: UIViewController {
   
   //Must call in viewDidLoad
   public func first(_ viewController: UIViewController) {
-    viewControllers = [viewController]
     addChildViewController(viewController)
     contentView.configure(viewController)
     viewController.didMove(toParentViewController: self)
