@@ -8,12 +8,12 @@
 
 import UIKit
 
-public protocol ZappableViewControllerDataSource {
+public protocol ZappableViewControllerDataSource: class {
   func zappableViewController(_ zappableViewController: ZappableViewController, viewControllerBefore viewController: UIViewController?) -> UIViewController?
   func zappableViewController(_ zappableViewController: ZappableViewController, viewControllerAfter viewController: UIViewController?)  -> UIViewController?
 }
 
-public protocol ZappableViewControllerDelegate {
+public protocol ZappableViewControllerDelegate: class {
   
 }
 
@@ -24,8 +24,8 @@ open class ZappableViewController: UIViewController {
     case next
   }
   
-  public var delegate: ZappableViewControllerDelegate? = nil
-  public var dataSource: ZappableViewControllerDataSource? = nil
+  weak public var delegate: ZappableViewControllerDelegate? = nil
+  weak public var dataSource: ZappableViewControllerDataSource? = nil
   private(set) var viewControllers = [UIViewController]()
   private var peekContainerView = ContainerView()
   private var contentView = ContainerView()
