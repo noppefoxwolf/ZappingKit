@@ -19,11 +19,7 @@ class ContainerView: UIView {
       addSubview(view)
       addConstraints(FillConstraintsPair(of: view))
     } else {
-      if let vc = self.viewController {
-        vc.willMove(toParentViewController: nil)
-        vc.view.removeFromSuperview()
-        vc.removeFromParentViewController()
-      }
+      self.viewController?.view.removeFromSuperview()
       self.viewController = nil
     }
   }

@@ -85,6 +85,10 @@ final class ItemViewController: UIViewController {
     label.text = "\(index): viewDidDisappear"
     print(label.text)
   }
+  
+  override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+    print(navigationController)
+  }
 }
 
 extension UIColor {

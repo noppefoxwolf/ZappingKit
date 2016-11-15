@@ -102,13 +102,20 @@ open class ZappableViewController: UIViewController {
           self?.peekContainerView.viewController?.endAppearanceTransition()
           let vc = self?.peekContainerView.viewController
           self?.peekContainerView.configure(nil)
+          
+          self?.contentView.viewController?.willMove(toParentViewController: nil)
+          self?.contentView.viewController?.removeFromParentViewController()
           self?.contentView.configure(nil)
+          
           self?.contentView.configure(vc)
           self?.contentView.transform = CGAffineTransform.identity
           self?.peekContentDirectionType = .idle
         case .idle:
           self?.peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
           self?.peekContainerView.viewController?.endAppearanceTransition()
+          
+          self?.peekContainerView.viewController?.willMove(toParentViewController: nil)
+          self?.peekContainerView.viewController?.removeFromParentViewController()
           self?.peekContainerView.configure(nil)
           self?.peekContentDirectionType = .idle
           self?.contentView.viewController?.beginAppearanceTransition(true, animated: true)
@@ -146,7 +153,11 @@ open class ZappableViewController: UIViewController {
         lockIdentity = false
         peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
         peekContainerView.viewController?.endAppearanceTransition()
+        
+        peekContainerView.viewController?.willMove(toParentViewController: nil)
+        peekContainerView.viewController?.removeFromParentViewController()
         peekContainerView.configure(nil)
+        
         addChildViewController(vc)
         peekContainerView.configure(vc)
         vc.didMove(toParentViewController: self)
@@ -154,6 +165,9 @@ open class ZappableViewController: UIViewController {
       } else {
         peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
         peekContainerView.viewController?.endAppearanceTransition()
+        
+        peekContainerView.viewController?.willMove(toParentViewController: nil)
+        peekContainerView.viewController?.removeFromParentViewController()
         peekContainerView.configure(nil)
         if disableBounceIfNotingNext {
           lockIdentity = true
@@ -164,6 +178,9 @@ open class ZappableViewController: UIViewController {
         lockIdentity = false
         peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
         peekContainerView.viewController?.endAppearanceTransition()
+        
+        peekContainerView.viewController?.willMove(toParentViewController: nil)
+        peekContainerView.viewController?.removeFromParentViewController()
         peekContainerView.configure(nil)
         
         addChildViewController(vc)
@@ -173,6 +190,9 @@ open class ZappableViewController: UIViewController {
       } else {
         peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
         peekContainerView.viewController?.endAppearanceTransition()
+        
+        peekContainerView.viewController?.willMove(toParentViewController: nil)
+        peekContainerView.viewController?.removeFromParentViewController()
         peekContainerView.configure(nil)
         if disableBounceIfNotingNext {
           lockIdentity = true
