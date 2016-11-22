@@ -32,7 +32,7 @@ open class ZappableViewController: UIViewController {
   //options
   public var disableBounceIfNotingNext = true
   private var lockIdentity = false
-  
+  public var validVelocityOffset: CGFloat = 0.0
   //temp
   private var peekContentDirectionType: DirectionType = .idle {
     didSet {
@@ -81,10 +81,10 @@ open class ZappableViewController: UIViewController {
       var toY: CGFloat = 0.0
       var toDirectionType: DirectionType = .idle
       switch velocityY {
-      case (let y) where y > 64 && peekContainerView.viewController != nil:
+      case (let y) where y > validVelocityOffset && peekContainerView.viewController != nil:
         toY =  view.bounds.height
         toDirectionType = .next
-      case (let y) where y < -64 && peekContainerView.viewController != nil:
+      case (let y) where y < -validVelocityOffset && peekContainerView.viewController != nil:
         toY = -view.bounds.height
         toDirectionType = .prev
       default: break
@@ -210,7 +210,7 @@ extension ZappableViewController: UIGestureRecognizerDelegate {
   public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
     if let recog = gestureRecognizer as? UIPanGestureRecognizer {
       let velocity = recog.velocity(in: self.view)
-      if abs(velocity.y) > abs(velocity.x) {
+      if abs(velocity.y) > abs(velocity.x) && validVelocityOffset < abs(velocity.y) {
         return true
       }
     }
