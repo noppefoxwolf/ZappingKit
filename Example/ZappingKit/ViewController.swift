@@ -32,6 +32,7 @@ final class ViewController: ZappableViewController, ZappableViewControllerDelega
   }
   
   func zappableViewController(_ zappableViewController: ZappableViewController, viewControllerBefore viewController: UIViewController?) -> UIViewController? {
+    return nil
     guard let current = viewController as? ItemViewController else { return nil }
     var index = current.index - 1
     if index < 0 {

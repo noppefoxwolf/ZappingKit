@@ -7,21 +7,29 @@
 //
 
 import UIKit
+import RxSwift
+import RxCocoa
 
 public protocol ZappableViewControllerDataSource: class {
   func zappableViewController(_ zappableViewController: ZappableViewController, viewControllerBefore viewController: UIViewController?) -> UIViewController?
   func zappableViewController(_ zappableViewController: ZappableViewController, viewControllerAfter viewController: UIViewController?)  -> UIViewController?
 }
 
-public protocol ZappableViewControllerDelegate: class {
-  
-}
+public protocol ZappableViewControllerDelegate: class { }
 
 open class ZappableViewController: UIViewController {
   enum DirectionType {
-    case prev
+    case before
     case idle
-    case next
+    case after
+    
+    static func type(translationY: CGFloat) -> DirectionType {
+      switch translationY {
+        case (let y) where y > 0: return .after
+        case (let y) where y < 0: return .before
+        default: return .idle
+      }
+    }
   }
   
   weak public var delegate: ZappableViewControllerDelegate? = nil
@@ -34,17 +42,19 @@ open class ZappableViewController: UIViewController {
   private var lockIdentity = false
   public var validVelocityOffset: CGFloat = 0.0
   //temp
-  private var peekContentDirectionType: DirectionType = .idle {
-    didSet {
-      if oldValue != peekContentDirectionType {
-        peekContentDirectionTypeChanged(peekContentDirectionType)
-      }
-    }
-  }
+  private var directionHandler = PublishSubject<DirectionType>()
+  private var peekContentType = BehaviorSubject<DirectionType>(value: .idle)
+  private var pushPublisher = PublishSubject<CGFloat>()
+  private var isScrollEnable = false
+  private var disposeBag = DisposeBag()
   
   open override func viewDidLoad() {
     super.viewDidLoad()
-    
+    setup()
+    setupSubscriber()
+  }
+  
+  private func setup() {
     peekContainerView.translatesAutoresizingMaskIntoConstraints = false
     contentView.translatesAutoresizingMaskIntoConstraints = false
     
@@ -59,148 +69,237 @@ open class ZappableViewController: UIViewController {
     view.addGestureRecognizer(pan)
   }
   
-  func panAction(_ sender: UIPanGestureRecognizer) {
-    let translationY = sender.translation(in: self.view).y
-    let velocityY = sender.velocity(in: self.view).y
+  private func setupSubscriber() {
+    directionHandler.distinctUntilChanged().asDriver(onErrorJustReturn: .idle).drive(onNext: { [weak self] (type) in
+      self?.preparePeekContentView(with: type)
+    }).addDisposableTo(disposeBag)
     
-    switch sender.state {
-    case .began: fallthrough
-    case .changed:
-      var toY = translationY
-      switch toY {
-        case (let y) where y > 0: peekContentDirectionType = .next
-        case (let y) where y < 0: peekContentDirectionType = .prev
-        default: peekContentDirectionType = .idle
+    pushPublisher.map { [weak self] (velocityY) -> DirectionType in
+      guard let value = try? self?.peekContentType.value(), let currentDirection = value else { return .idle }
+      switch currentDirection {
+      case .after  where velocityY <= 0: return .idle
+      case .before where velocityY >= 0: return .idle
+      default: return currentDirection
       }
-      if lockIdentity {
-        contentView.transform = CGAffineTransform.identity
-      } else {
-        contentView.transform = CGAffineTransform(translationX: 0, y: toY)
-      }
-    case .ended:
-      var toY: CGFloat = 0.0
-      var toDirectionType: DirectionType = .idle
-      switch velocityY {
-      case (let y) where y > validVelocityOffset && peekContainerView.viewController != nil:
-        toY =  view.bounds.height
-        toDirectionType = .next
-      case (let y) where y < -validVelocityOffset && peekContainerView.viewController != nil:
-        toY = -view.bounds.height
-        toDirectionType = .prev
-      default: break
-      }
-      view.isUserInteractionEnabled = false
-      
-      let rangeY = abs(contentView.frame.origin.y - toY)
-      let duration = min(rangeY / velocityY, 0.75)
-      UIView.animate(withDuration: TimeInterval(duration), delay: 0.0, options: [.allowAnimatedContent, .curveEaseInOut] , animations: { [weak self] in
-        self?.contentView.transform = CGAffineTransform(translationX: 0, y: toY)
-      }) { [weak self] (_) in
-        switch toDirectionType {
-        case .next, .prev:
+    }.filter({ [weak self] (type) -> Bool in
+      guard let value = try? self?.peekContentType.value(), let currentDirection = value else { return false }
+      return !(currentDirection == .idle && type == .idle)
+    }).asDriver(onErrorJustReturn: .idle).drive(onNext: { [weak self] (type) in
+      switch type {
+      case .after:
+        UIView.animate(withDuration: 1.0, delay: 0.0, options: .allowAnimatedContent, animations: {
+          self?.contentView.transform = CGAffineTransform(translationX: 0, y: self!.view.bounds.height)
+        }, completion: { [weak self] (_) in
           self?.contentView.viewController?.endAppearanceTransition()
-          self?.peekContainerView.viewController?.endAppearanceTransition()
-          let vc = self?.peekContainerView.viewController
-          self?.peekContainerView.configure(nil)
-          
           self?.contentView.viewController?.willMove(toParentViewController: nil)
+          self?.contentView.viewController?.view.removeFromSuperview()
           self?.contentView.viewController?.removeFromParentViewController()
-          self?.contentView.configure(nil)
-          
-          self?.contentView.configure(vc)
+          self?.contentView.viewController = nil
+        })
+      case .before:
+        UIView.animate(withDuration: 1.0, delay: 0.0, options: .allowAnimatedContent, animations: {
+          self?.contentView.transform = CGAffineTransform(translationX: 0, y: -self!.view.bounds.height)
+        }, completion: { [weak self] (_) in
+          self?.contentView.viewController?.endAppearanceTransition()
+          self?.contentView.viewController?.willMove(toParentViewController: nil)
+          self?.contentView.viewController?.view.removeFromSuperview()
+          self?.contentView.viewController?.removeFromParentViewController()
+          self?.contentView.viewController = nil
+        })
+      default:
+        UIView.animate(withDuration: 1.0, delay: 0.0, options: .allowAnimatedContent, animations: {
           self?.contentView.transform = CGAffineTransform.identity
-          self?.peekContentDirectionType = .idle
-        case .idle:
-          self?.peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
-          self?.peekContainerView.viewController?.endAppearanceTransition()
-          
-          self?.peekContainerView.viewController?.willMove(toParentViewController: nil)
-          self?.peekContainerView.viewController?.removeFromParentViewController()
-          self?.peekContainerView.configure(nil)
-          self?.peekContentDirectionType = .idle
+        }, completion: { (_) in
           self?.contentView.viewController?.beginAppearanceTransition(true, animated: true)
           self?.contentView.viewController?.endAppearanceTransition()
-        }
-        self?.view.isUserInteractionEnabled = true
+        })
       }
+    }).addDisposableTo(disposeBag)
+  }
+  
+  private func preparePeekContentView(with type: DirectionType) {
+    var vc: UIViewController? = nil
+    switch type {
+    case .after:
+      vc = dataSource?.zappableViewController(self, viewControllerAfter:  contentView.viewController)
+    case .before:
+      vc = dataSource?.zappableViewController(self, viewControllerBefore:  contentView.viewController)
     default: break
+    }
+    isScrollEnable = (vc != nil)
+    
+    if let vc = vc {
+      peekContentType.onNext(type)
+      contentView.viewController?.beginAppearanceTransition(false, animated: true)
+      //peekContainerView.configure(vc)
+    } else {
+      peekContentType.onNext(.idle)
+//      peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
+//      peekContainerView.viewController?.endAppearanceTransition()
+//      peekContainerView.viewController?.willMove(toParentViewController: nil)
+//      peekContainerView.viewController?.removeFromParentViewController()
+//      peekContainerView.configure(nil)
     }
   }
   
-  open override func viewWillAppear(_ animated: Bool) {
-    super.viewWillAppear(animated)
-    contentView.viewController?.beginAppearanceTransition(true, animated: true)
-    contentView.viewController?.endAppearanceTransition()
+  @objc private func panAction(_ sender: UIPanGestureRecognizer) {
+    let translationY = sender.translation(in: self.view).y
+    let velocityY = sender.velocity(in: self.view).y
+    switch sender.state {
+    case .began, .changed:
+      directionHandler.onNext(DirectionType.type(translationY: translationY))
+      if isScrollEnable {
+        contentView.transform = CGAffineTransform(translationX: 0, y: translationY)
+      }
+    case .ended:
+      pushPublisher.onNext(velocityY)
+    default: break
+    }
+    
+//    let translationY = sender.translation(in: self.view).y
+//    let velocityY = sender.velocity(in: self.view).y
+//    
+//    switch sender.state {
+//    case .began, .changed:
+//      switch translationY {
+//        case (let y) where y > 0: peekContentDirectionType = .next
+//        case (let y) where y < 0: peekContentDirectionType = .prev
+//        default: peekContentDirectionType = .idle
+//      }
+//      if lockIdentity {
+//        contentView.transform = CGAffineTransform.identity
+//      } else {
+//        contentView.transform = CGAffineTransform(translationX: 0, y: toY)
+//      }
+//    case .ended:
+//      var toY: CGFloat = 0.0
+//      var toDirectionType: DirectionType = .idle
+//      switch velocityY {
+//      case (let y) where y > validVelocityOffset && peekContainerView.viewController != nil:
+//        toY =  view.bounds.height
+//        toDirectionType = .next
+//      case (let y) where y < -validVelocityOffset && peekContainerView.viewController != nil:
+//        toY = -view.bounds.height
+//        toDirectionType = .prev
+//      default: break
+//      }
+//      view.isUserInteractionEnabled = false
+//      
+//      let rangeY = abs(contentView.frame.origin.y - toY)
+//      let duration = min(rangeY / velocityY, 0.75)
+//      UIView.animate(withDuration: TimeInterval(duration), delay: 0.0, options: [.allowAnimatedContent, .curveEaseInOut] , animations: { [weak self] in
+//        self?.contentView.transform = CGAffineTransform(translationX: 0, y: toY)
+//      }) { [weak self] (_) in
+//        switch toDirectionType {
+//        case .next, .prev:
+//          self?.contentView.viewController?.endAppearanceTransition()
+//          self?.peekContainerView.viewController?.endAppearanceTransition()
+//          let vc = self?.peekContainerView.viewController
+//          self?.peekContainerView.configure(nil)
+//          
+//          self?.contentView.viewController?.willMove(toParentViewController: nil)
+//          self?.contentView.viewController?.removeFromParentViewController()
+//          self?.contentView.configure(nil)
+//          
+//          self?.contentView.configure(vc)
+//          self?.contentView.transform = CGAffineTransform.identity
+//          self?.peekContentDirectionType = .idle
+//        case .idle:
+//          self?.peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
+//          self?.peekContainerView.viewController?.endAppearanceTransition()
+//          
+//          self?.peekContainerView.viewController?.willMove(toParentViewController: nil)
+//          self?.peekContainerView.viewController?.removeFromParentViewController()
+//          self?.peekContainerView.configure(nil)
+//          self?.peekContentDirectionType = .idle
+//          self?.contentView.viewController?.beginAppearanceTransition(true, animated: true)
+//          self?.contentView.viewController?.endAppearanceTransition()
+//        }
+//        self?.view.isUserInteractionEnabled = true
+//      }
+//    default: break
+//    }
   }
   
-  open override func viewDidDisappear(_ animated: Bool) {
-    super.viewDidDisappear(animated)
-    contentView.viewController?.beginAppearanceTransition(false, animated: true)
-    contentView.viewController?.endAppearanceTransition()
-  }
+//  open override func viewWillAppear(_ animated: Bool) {
+//    super.viewWillAppear(animated)
+//    contentView.viewController?.beginAppearanceTransition(true, animated: true)
+//    contentView.viewController?.endAppearanceTransition()
+//  }
+//  
+//  open override func viewDidDisappear(_ animated: Bool) {
+//    super.viewDidDisappear(animated)
+//    contentView.viewController?.beginAppearanceTransition(false, animated: true)
+//    contentView.viewController?.endAppearanceTransition()
+//  }
   
   //Must call in viewDidLoad
   public func first(_ viewController: UIViewController) {
+    viewController.beginAppearanceTransition(true, animated: false)
+    viewController.view.translatesAutoresizingMaskIntoConstraints = false
     addChildViewController(viewController)
-    contentView.configure(viewController)
+    contentView.viewController = viewController
+    contentView.addSubview(viewController.view)
+    contentView.addConstraints(FillConstraintsPair(of: viewController.view))
     viewController.didMove(toParentViewController: self)
+    viewController.endAppearanceTransition()
   }
   
-  fileprivate func peekContentDirectionTypeChanged(_ type: DirectionType) {
-    switch type {
-    case .next:
-      if let vc = dataSource?.zappableViewController(self, viewControllerAfter:  contentView.viewController) {
-        lockIdentity = false
-        peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
-        peekContainerView.viewController?.endAppearanceTransition()
-        
-        peekContainerView.viewController?.willMove(toParentViewController: nil)
-        peekContainerView.viewController?.removeFromParentViewController()
-        peekContainerView.configure(nil)
-        
-        addChildViewController(vc)
-        peekContainerView.configure(vc)
-        vc.didMove(toParentViewController: self)
-        peekContainerView.viewController?.beginAppearanceTransition(true, animated: true)
-      } else {
-        peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
-        peekContainerView.viewController?.endAppearanceTransition()
-        
-        peekContainerView.viewController?.willMove(toParentViewController: nil)
-        peekContainerView.viewController?.removeFromParentViewController()
-        peekContainerView.configure(nil)
-        if disableBounceIfNotingNext {
-          lockIdentity = true
-        }
-      }
-    case .prev:
-      if let vc = dataSource?.zappableViewController(self, viewControllerBefore: contentView.viewController) {
-        lockIdentity = false
-        peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
-        peekContainerView.viewController?.endAppearanceTransition()
-        
-        peekContainerView.viewController?.willMove(toParentViewController: nil)
-        peekContainerView.viewController?.removeFromParentViewController()
-        peekContainerView.configure(nil)
-        
-        addChildViewController(vc)
-        peekContainerView.configure(vc)
-        vc.didMove(toParentViewController: self)
-        peekContainerView.viewController?.beginAppearanceTransition(true, animated: true)
-      } else {
-        peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
-        peekContainerView.viewController?.endAppearanceTransition()
-        
-        peekContainerView.viewController?.willMove(toParentViewController: nil)
-        peekContainerView.viewController?.removeFromParentViewController()
-        peekContainerView.configure(nil)
-        if disableBounceIfNotingNext {
-          lockIdentity = true
-        }
-      }
-    case .idle: break
-    }
-  }
+//  fileprivate func peekContentDirectionTypeChanged(_ type: DirectionType) {
+//    switch type {
+//    case .next:
+//      if let vc = dataSource?.zappableViewController(self, viewControllerAfter:  contentView.viewController) {
+//        lockIdentity = false
+//        peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
+//        peekContainerView.viewController?.endAppearanceTransition()
+//        
+//        peekContainerView.viewController?.willMove(toParentViewController: nil)
+//        peekContainerView.viewController?.removeFromParentViewController()
+//        peekContainerView.configure(nil)
+//        
+//        addChildViewController(vc)
+//        peekContainerView.configure(vc)
+//        vc.didMove(toParentViewController: self)
+//        peekContainerView.viewController?.beginAppearanceTransition(true, animated: true)
+//      } else {
+//        peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
+//        peekContainerView.viewController?.endAppearanceTransition()
+//        
+//        peekContainerView.viewController?.willMove(toParentViewController: nil)
+//        peekContainerView.viewController?.removeFromParentViewController()
+//        peekContainerView.configure(nil)
+//        if disableBounceIfNotingNext {
+//          lockIdentity = true
+//        }
+//      }
+//    case .prev:
+//      if let vc = dataSource?.zappableViewController(self, viewControllerBefore: contentView.viewController) {
+//        lockIdentity = false
+//        peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
+//        peekContainerView.viewController?.endAppearanceTransition()
+//        
+//        peekContainerView.viewController?.willMove(toParentViewController: nil)
+//        peekContainerView.viewController?.removeFromParentViewController()
+//        peekContainerView.configure(nil)
+//        
+//        addChildViewController(vc)
+//        peekContainerView.configure(vc)
+//        vc.didMove(toParentViewController: self)
+//        peekContainerView.viewController?.beginAppearanceTransition(true, animated: true)
+//      } else {
+//        peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
+//        peekContainerView.viewController?.endAppearanceTransition()
+//        
+//        peekContainerView.viewController?.willMove(toParentViewController: nil)
+//        peekContainerView.viewController?.removeFromParentViewController()
+//        peekContainerView.configure(nil)
+//        if disableBounceIfNotingNext {
+//          lockIdentity = true
+//        }
+//      }
+//    case .idle: break
+//    }
+//  }
   
   //viewWillAppearとかの制御権を握る
   open override var shouldAutomaticallyForwardAppearanceMethods: Bool { return false }
