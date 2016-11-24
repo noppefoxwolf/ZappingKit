@@ -24,4 +24,6 @@ Provide zapping UI. Support navigation controllre life cycle.
   s.ios.deployment_target = '8.0'
 
   s.source_files = 'ZappingKit/Classes/**/*'
+  s.dependency 'RxSwift'
+  s.dependency 'RxCocoa'
 end

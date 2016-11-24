@@ -1,5 +1,10 @@
 PODS:
-  - ZappingKit (0.1.0)
+  - RxCocoa (3.0.1):
+    - RxSwift (~> 3.0)
+  - RxSwift (3.0.1)
+  - ZappingKit (0.1.10):
+    - RxCocoa
+    - RxSwift
 
 DEPENDENCIES:
   - ZappingKit (from `../`)
@@ -9,8 +14,10 @@ EXTERNAL SOURCES:
     :path: "../"
 
 SPEC CHECKSUMS:
-  ZappingKit: 02c61b020b2919d1baa30c839b4bceb2a77b83d9
+  RxCocoa: 15a52fc590dcc700cb4a690a633b5c5184ce3a78
+  RxSwift: af5680055c4ad04480189c52d28385b1029493a6
+  ZappingKit: 1f39e33f7e172717776ecd7071b2c309868350fb
 
 PODFILE CHECKSUM: d239886a77dc0d48f3fc5057c475e9a318d549a4
 
-COCOAPODS: 1.1.0.rc.2
+COCOAPODS: 1.2.0.beta.1
