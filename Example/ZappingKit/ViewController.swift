@@ -21,6 +21,7 @@ final class ViewController: ZappableViewController, ZappableViewControllerDelega
   }
   
   func zappableViewController(_ zappableViewController: ZappableViewController, viewControllerAfter viewController: UIViewController?) -> UIViewController? {
+    return nil
     guard let current = viewController as? ItemViewController else { return nil }
     var index = current.index + 1
     if index >= Colors.shared.colors.count {
