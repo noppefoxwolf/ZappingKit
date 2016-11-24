@@ -46,6 +46,7 @@ open class ZappableViewController: UIViewController {
   private var peekContentType = BehaviorSubject<DirectionType>(value: .idle)
   private var pushPublisher = PublishSubject<CGFloat>()
   private var isScrollEnable = false
+  private var isNeedEndAppearanceContentView = false
   private var disposeBag = DisposeBag()
   
   open override func viewDidLoad() {
@@ -83,35 +84,73 @@ open class ZappableViewController: UIViewController {
       }
     }.filter({ [weak self] (type) -> Bool in
       guard let value = try? self?.peekContentType.value(), let currentDirection = value else { return false }
-      return !(currentDirection == .idle && type == .idle)
+      return !(currentDirection == .idle && type == .idle && !self!.isNeedEndAppearanceContentView)
     }).asDriver(onErrorJustReturn: .idle).drive(onNext: { [weak self] (type) in
       switch type {
       case .after:
         UIView.animate(withDuration: 1.0, delay: 0.0, options: .allowAnimatedContent, animations: {
           self?.contentView.transform = CGAffineTransform(translationX: 0, y: self!.view.bounds.height)
         }, completion: { [weak self] (_) in
+          self?.peekContainerView.viewController?.endAppearanceTransition()
+          
+          self?.isNeedEndAppearanceContentView = false
           self?.contentView.viewController?.endAppearanceTransition()
           self?.contentView.viewController?.willMove(toParentViewController: nil)
           self?.contentView.viewController?.view.removeFromSuperview()
           self?.contentView.viewController?.removeFromParentViewController()
           self?.contentView.viewController = nil
+          
+          if let vc = self?.peekContainerView.viewController {
+            self?.peekContainerView.viewController = nil
+            vc.view.removeFromSuperview()
+            self?.contentView.viewController = vc
+            self?.contentView.addSubview(vc.view)
+            self?.contentView.addConstraints(FillConstraintsPair(of: vc.view))
+            self?.contentView.viewController?.endAppearanceTransition()
+            self?.contentView.transform = CGAffineTransform.identity
+            
+            self?.directionHandler.onNext(.idle)
+          }
         })
       case .before:
         UIView.animate(withDuration: 1.0, delay: 0.0, options: .allowAnimatedContent, animations: {
           self?.contentView.transform = CGAffineTransform(translationX: 0, y: -self!.view.bounds.height)
         }, completion: { [weak self] (_) in
+          self?.isNeedEndAppearanceContentView = false
           self?.contentView.viewController?.endAppearanceTransition()
           self?.contentView.viewController?.willMove(toParentViewController: nil)
           self?.contentView.viewController?.view.removeFromSuperview()
           self?.contentView.viewController?.removeFromParentViewController()
           self?.contentView.viewController = nil
+          
+          if let vc = self?.peekContainerView.viewController {
+            self?.peekContainerView.viewController = nil
+            vc.view.removeFromSuperview()
+            self?.contentView.viewController = vc
+            self?.contentView.addSubview(vc.view)
+            self?.contentView.addConstraints(FillConstraintsPair(of: vc.view))
+            self?.contentView.viewController?.endAppearanceTransition()
+            self?.contentView.transform = CGAffineTransform.identity
+            
+            self?.directionHandler.onNext(.idle)
+          }
         })
       default:
         UIView.animate(withDuration: 1.0, delay: 0.0, options: .allowAnimatedContent, animations: {
           self?.contentView.transform = CGAffineTransform.identity
         }, completion: { (_) in
+          self?.peekContainerView.viewController?.beginAppearanceTransition(false, animated: false)
+          self?.peekContainerView.viewController?.endAppearanceTransition()
+          self?.peekContainerView.viewController?.willMove(toParentViewController: nil)
+          self?.peekContainerView.viewController?.view.removeFromSuperview()
+          self?.peekContainerView.viewController?.removeFromParentViewController()
+          self?.peekContainerView.viewController = nil
+          
+          self?.isNeedEndAppearanceContentView = false
           self?.contentView.viewController?.beginAppearanceTransition(true, animated: true)
           self?.contentView.viewController?.endAppearanceTransition()
+          
+          self?.directionHandler.onNext(.idle)
         })
       }
     }).addDisposableTo(disposeBag)
@@ -128,17 +167,27 @@ open class ZappableViewController: UIViewController {
     }
     isScrollEnable = (vc != nil)
     
+    peekContainerView.viewController?.beginAppearanceTransition(false, animated: false)
+    peekContainerView.viewController?.endAppearanceTransition()
+    peekContainerView.viewController?.willMove(toParentViewController: nil)
+    peekContainerView.viewController?.view.removeFromSuperview()
+    peekContainerView.viewController?.removeFromParentViewController()
+    peekContainerView.viewController = nil
+    
     if let vc = vc {
+      isNeedEndAppearanceContentView = true
       peekContentType.onNext(type)
       contentView.viewController?.beginAppearanceTransition(false, animated: true)
-      //peekContainerView.configure(vc)
+      
+      vc.beginAppearanceTransition(true, animated: false)
+      vc.view.translatesAutoresizingMaskIntoConstraints = false
+      addChildViewController(vc)
+      peekContainerView.viewController = vc
+      peekContainerView.addSubview(vc.view)
+      peekContainerView.addConstraints(FillConstraintsPair(of: vc.view))
+      vc.didMove(toParentViewController: self)
     } else {
       peekContentType.onNext(.idle)
-//      peekContainerView.viewController?.beginAppearanceTransition(false, animated: true)
-//      peekContainerView.viewController?.endAppearanceTransition()
-//      peekContainerView.viewController?.willMove(toParentViewController: nil)
-//      peekContainerView.viewController?.removeFromParentViewController()
-//      peekContainerView.configure(nil)
     }
   }
   
