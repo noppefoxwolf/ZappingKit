@@ -98,6 +98,7 @@ open class ZappableViewController: UIViewController {
       
       switch type {
       case .after, .before:
+        self?.view.isUserInteractionEnabled = false
         UIView.animate(withDuration: TimeInterval(duration), delay: 0.0, options: .allowAnimatedContent, animations: {
           self?.contentView.transform = CGAffineTransform(translationX: 0, y: toY)
         }, completion: { [weak self] (_) in
@@ -121,8 +122,10 @@ open class ZappableViewController: UIViewController {
             
             self?.directionHandler.onNext(.idle)
           }
+          self?.view.isUserInteractionEnabled = true
         })
       default:
+        self?.view.isUserInteractionEnabled = false
         UIView.animate(withDuration: TimeInterval(duration), delay: 0.0, options: .allowAnimatedContent, animations: {
           self?.contentView.transform = CGAffineTransform.identity
         }, completion: { (_) in
@@ -138,6 +141,7 @@ open class ZappableViewController: UIViewController {
           self?.contentView.viewController?.endAppearanceTransition()
           
           self?.directionHandler.onNext(.idle)
+          self?.view.isUserInteractionEnabled = true
         })
       }
     }).addDisposableTo(disposeBag)

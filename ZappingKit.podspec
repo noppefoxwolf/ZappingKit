@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'ZappingKit'
-  s.version          = '0.1.11'
+  s.version          = '0.1.12'
   s.summary          = 'Provide zapping UI.'
 
   s.description      = <<-DESC
