@@ -32,6 +32,12 @@ open class ZappableViewController: UIViewController {
     }
   }
   
+  public enum HandlingMode {
+    case velocity
+    case translation
+    case mix
+  }
+  
   weak public var delegate: ZappableViewControllerDelegate? = nil
   weak public var dataSource: ZappableViewControllerDataSource? = nil
   private var peekContainerView = ContainerView()
@@ -48,6 +54,7 @@ open class ZappableViewController: UIViewController {
   private var isScrollEnable = false
   private var isNeedEndAppearanceContentView = false
   private var disposeBag = DisposeBag()
+  public var handlingMode: HandlingMode = .velocity
   
   open override func viewDidLoad() {
     super.viewDidLoad()
@@ -228,9 +235,23 @@ open class ZappableViewController: UIViewController {
 extension ZappableViewController: UIGestureRecognizerDelegate {
   public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
     if let recog = gestureRecognizer as? UIPanGestureRecognizer {
-      let velocity = recog.velocity(in: self.view)
-      if abs(velocity.y) > abs(velocity.x) && validVelocityOffset < abs(velocity.y) {
-        return true
+      switch handlingMode {
+      case .velocity:
+        let velocity = recog.velocity(in: self.view)
+        if abs(velocity.y) > abs(velocity.x) && validVelocityOffset < abs(velocity.y) {
+          return true
+        }
+      case .translation:
+        let translate = recog.translation(in: self.view)
+        if abs(translate.y) > abs(translate.x) && validVelocityOffset < abs(translate.y) {
+          return true
+        }
+      case .mix:
+        let velocity = recog.velocity(in: self.view)
+        let translate = recog.translation(in: self.view)
+        if abs(velocity.y) > abs(velocity.x) && validVelocityOffset < abs(velocity.y) && abs(translate.y) > abs(translate.x) && validVelocityOffset < abs(translate.y) {
+          return true
+        }
       }
     }
     return false

@@ -2,7 +2,7 @@ PODS:
   - RxCocoa (3.0.1):
     - RxSwift (~> 3.0)
   - RxSwift (3.0.1)
-  - ZappingKit (0.1.10):
+  - ZappingKit (0.1.12):
     - RxCocoa
     - RxSwift
 
@@ -16,8 +16,8 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   RxCocoa: 15a52fc590dcc700cb4a690a633b5c5184ce3a78
   RxSwift: af5680055c4ad04480189c52d28385b1029493a6
-  ZappingKit: 1f39e33f7e172717776ecd7071b2c309868350fb
+  ZappingKit: 526a044796bc22c693e92c53ffbe3a2cb4f33c03
 
 PODFILE CHECKSUM: d239886a77dc0d48f3fc5057c475e9a318d549a4
 
-COCOAPODS: 1.2.0.beta.1
+COCOAPODS: 1.2.0.rc.1
