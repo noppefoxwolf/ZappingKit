@@ -47,6 +47,7 @@ open class ZappableViewController: UIViewController {
   public var disableBounceIfNotingNext = true
   private var lockIdentity = false
   public var validVelocityOffset: CGFloat = 0.0
+  public var validTranslationOffset: CGFloat = 0.0
   //temp
   private var directionHandler = PublishSubject<DirectionType>()
   private var peekContentType = BehaviorSubject<DirectionType>(value: .idle)
@@ -243,13 +244,13 @@ extension ZappableViewController: UIGestureRecognizerDelegate {
         }
       case .translation:
         let translate = recog.translation(in: self.view)
-        if abs(translate.y) > abs(translate.x) && validVelocityOffset < abs(translate.y) {
+        if abs(translate.y) > abs(translate.x) && validTranslationOffset < abs(translate.y) {
           return true
         }
       case .mix:
         let velocity = recog.velocity(in: self.view)
         let translate = recog.translation(in: self.view)
-        if abs(velocity.y) > abs(velocity.x) && validVelocityOffset < abs(velocity.y) && abs(translate.y) > abs(translate.x) && validVelocityOffset < abs(translate.y) {
+        if abs(velocity.y) > abs(velocity.x) && validVelocityOffset < abs(velocity.y) && abs(translate.y) > abs(translate.x) && validTranslationOffset < abs(translate.y) {
           return true
         }
       }
